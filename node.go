@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"strings"
 )
 
 type redisConn struct {
@@ -133,6 +134,10 @@ func (node *redisNode) getConn() (*redisConn, error) {
 	return elem.Value.(*redisConn), nil
 }
 
+func cleanHostForComparison(host string) string {
+	return strings.ToLower(strings.Replace(strings.Replace(host,"localhost:",":",1), "127.0.0.1:",":",1))
+}
+
 func (node *redisNode) releaseConn(conn *redisConn) {
 	node.mutex.Lock()
 	defer node.mutex.Unlock()
@@ -148,8 +153,8 @@ func (node *redisNode) releaseConn(conn *redisConn) {
 		return
 	}
 
-	if conn.c.RemoteAddr().String() != node.address {
-		panic("unreachable")
+	if cleanHostForComparison(conn.c.RemoteAddr().String()) != cleanHostForComparison(node.address) && !(strings.HasPrefix(node.address,":") && strings.HasSuffix(conn.c.RemoteAddr().String(), node.address) ) {
+		panic("unreachable "+conn.c.RemoteAddr().String()+" != "+node.address)
 	}
 
 	conn.t = time.Now()
